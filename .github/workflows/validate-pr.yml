@@ -1,0 +1,31 @@
+name: Validate PR
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Validate branch naming
+        run: |
+          BRANCH="${{ github.head_ref }}"
+          if [[ ! $BRANCH =~ ^(feature|fix)/issue-[0-9]+-[a-z0-9-]+$ ]]; then
+            echo "❌ Branch name does not follow convention"
+            echo "Expected format: feature/issue-XXX-description or fix/issue-XXX-description"
+            echo "Got: $BRANCH"
+            exit 1
+          fi
+          echo "✅ Branch name is valid: $BRANCH"
+
+      - name: Check for linked issue
+        run: |
+          BODY="${{ github.event.pull_request.body }}"
+          if [[ ! $BODY =~ (Fixes|Related\ to|Closes)\ #[0-9]+ ]]; then
+            echo "❌ PR body must reference an issue"
+            echo "Use: 'Fixes #123' or 'Related to #456' or 'Closes #789'"
+            exit 1
+          fi
+          echo "✅ PR is linked to an issue"
