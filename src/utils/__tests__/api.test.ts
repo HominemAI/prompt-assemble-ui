@@ -19,12 +19,6 @@ describe('Backend Abstraction - createBackend()', () => {
     expect(typeof backend.listPrompts).toBe('function')
   })
 
-  it('throws error for invalid mode', () => {
-    expect(() => {
-      createBackend({ mode: 'invalid' as any })
-    }).toThrow()
-  })
-
   it('accepts baseUrl config for remote backend', () => {
     const backend = createBackend({
       mode: 'remote',

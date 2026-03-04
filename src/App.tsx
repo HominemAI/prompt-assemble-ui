@@ -9,17 +9,13 @@ import {
   FiMenu,
   FiLock,
   FiUnlock,
-  FiSun,
-  FiMoon,
   FiCode,
   FiClock,
   FiPlay,
   FiSettings,
-  FiMessageSquare,
 } from 'react-icons/fi';
 import { useTheme } from './hooks/useTheme';
-import { createBackend, BackendMode, PromptBackend } from './utils/api';
-import { migrateBackends } from './utils/migration';
+import { backend } from './utils/api';
 import { BackendProvider } from './contexts/BackendContext';
 import PromptExplorer from './components/PromptExplorer';
 import EditorPanel from './components/EditorPanel';
@@ -33,8 +29,6 @@ import VariableSetsModal from './components/VariableSetsModal';
 import VariableSetsSelector from './components/VariableSetsSelector';
 import RenderModal from './components/RenderModal';
 import SettingsModal from './components/SettingsModal';
-import { lazy, Suspense } from 'react';
-const FeedbackModal = lazy(() => import('./components/FeedbackModal'));
 import './App.css';
 
 const lightLogo = '/logos/light_black.svg';
@@ -117,24 +111,7 @@ const App: React.FC = () => {
   const [showRenderModal, setShowRenderModal] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(true);
 
-  // Backend management
-  const [backendMode, setBackendMode] = useState<BackendMode>(() => {
-    if (typeof window !== 'undefined') {
-      return (window.localStorage.getItem('prompt-assemble-backend') as BackendMode) || 'local';
-    }
-    return 'local';
-  });
-
-  const [backend, setBackendInstance] = useState<PromptBackend>(
-    createBackend({ mode: backendMode })
-  );
-
-  // Check if backend mode is locked at build time
-  const lockedBackendMode = (typeof window !== 'undefined' ? (window as any).REACT_APP_LOCKED_BACKEND_MODE : undefined) as BackendMode | undefined;
-
   const [showSettings, setShowSettings] = useState(false);
-  const [showFeedback, setShowFeedback] = useState(false);
-  const [isBackendSwitching, setIsBackendSwitching] = useState(false);
 
   // Modal state
   const [alertModal, setAlertModal] = useState<{ isOpen: boolean; title: string; message: string }>({
@@ -281,80 +258,6 @@ const App: React.FC = () => {
   /**
    * Handle backend mode switching with data migration support.
    */
-  const handleBackendChange = async (newMode: BackendMode, importData: boolean = false) => {
-    // Don't allow switching if backend is locked
-    if (lockedBackendMode) {
-      setAlertModal({
-        isOpen: true,
-        title: 'Backend Locked',
-        message: 'Backend switching is disabled for this deployment.',
-      });
-      return;
-    }
-
-    setIsBackendSwitching(true);
-    try {
-      const oldBackend = backend;
-      const newBackend = createBackend({ mode: newMode });
-
-      // If switching to filesystem, ask user to select folder
-      if (newMode === 'filesystem') {
-        const fsBackend = newBackend as any;
-        const folderSelected = await fsBackend.selectAndVerifyFolder(importData);
-        if (!folderSelected) {
-          setIsBackendSwitching(false);
-          return;
-        }
-      }
-
-      // Migrate data if requested
-      if (importData && newMode === 'filesystem') {
-        console.log('Migrating data from old backend to filesystem...');
-        await migrateBackends(oldBackend, newBackend, (msg) => {
-          console.log(`Migration: ${msg}`);
-        });
-      }
-
-      // Update backend
-      setBackendInstance(newBackend);
-      setBackendMode(newMode);
-
-      // Persist preference
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem('prompt-assemble-backend', newMode);
-      }
-
-      // Reload all data from new backend
-      console.log('Reloading data from new backend...');
-      const newPrompts = await newBackend.listPrompts();
-      setPrompts(newPrompts as Prompt[]);
-
-      const newTags = await newBackend.listTags();
-      setAllTags(newTags);
-
-      const newVarSets = await newBackend.listVariableSets();
-      setVariableSets(newVarSets);
-
-      // Show success message
-      setAlertModal({
-        isOpen: true,
-        title: 'Backend Updated',
-        message: `Successfully switched to ${newMode === 'filesystem' ? 'filesystem' : 'browser'} storage.`,
-      });
-
-      setShowSettings(false);
-    } catch (error) {
-      console.error('Error switching backend:', error);
-      setAlertModal({
-        isOpen: true,
-        title: 'Backend Switch Failed',
-        message: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      });
-    } finally {
-      setIsBackendSwitching(false);
-    }
-  };
-
   const createNewDocument = () => {
     console.log('createNewDocument called, current documents count:', documents.length);
     const defaultTemplate = `#! Add a description of your prompt here
@@ -866,7 +769,7 @@ You are a helpful assistant specializing in [[DOMAIN]].
   const activeDoc = getActiveDocument();
 
   return (
-    <BackendProvider backend={backend} backendMode={backendMode}>
+    <BackendProvider backend={backend} backendMode="remote">
       <div className="app-container">
       {/* Header with Branding and Theme Toggle */}
       <div className="app-header">
@@ -901,26 +804,8 @@ You are a helpful assistant specializing in [[DOMAIN]].
         </button>
         <button
           className="btn-icon"
-          onClick={() => {
-            console.log('[App] Feedback button clicked');
-            setShowFeedback(true);
-          }}
-          title="Send Feedback"
-        >
-          <FiMessageSquare size={20} />
-          Feedback
-        </button>
-        <button
-          className="btn-theme-toggle"
-          onClick={toggleTheme}
-          title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-        >
-          {theme === 'light' ? <FiMoon size={20} /> : <FiSun size={20} />}
-        </button>
-        <button
-          className="btn-icon"
           onClick={() => setShowSettings(true)}
-          title="Storage Settings"
+          title="Settings"
         >
           <FiSettings size={20} />
         </button>
@@ -1250,19 +1135,9 @@ You are a helpful assistant specializing in [[DOMAIN]].
       <SettingsModal
         isOpen={showSettings}
         onClose={() => setShowSettings(false)}
-        currentBackendMode={backendMode}
-        onBackendChange={handleBackendChange}
-        isLoading={isBackendSwitching}
-        lockedBackendMode={lockedBackendMode}
+        theme={theme}
+        onThemeToggle={toggleTheme}
       />
-
-      {/* Feedback Modal */}
-      <Suspense fallback={null}>
-        <FeedbackModal
-          isOpen={showFeedback}
-          onClose={() => setShowFeedback(false)}
-        />
-      </Suspense>
     </div>
     </BackendProvider>
   );
