@@ -18,9 +18,9 @@ interface ParseResult {
 /**
  * Convert XML-formatted text to JSON.
  * If no XML tags found, returns the original text as a string.
- * Otherwise returns a stringified JSON object.
+ * Otherwise returns a JSON object.
  */
-export function xmlToJson(text: string): string {
+export function xmlToJson(text: string): any {
   // Check if there are any XML-like tags
   if (!/<[a-zA-Z][\w-]*[^>]*>/.test(text)) {
     return text;
@@ -29,13 +29,8 @@ export function xmlToJson(text: string): string {
   try {
     const parsed = parseXml(text.trim());
 
-    // If the result is a string (no structured XML), return as-is
-    if (typeof parsed === 'string') {
-      return parsed;
-    }
-
-    // Return pretty-printed JSON
-    return JSON.stringify(parsed, null, 2);
+    // Return the parsed object/value directly
+    return parsed;
   } catch (error) {
     // If parsing fails, return original text
     console.warn('XML to JSON conversion failed:', error);
