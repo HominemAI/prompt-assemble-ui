@@ -78,6 +78,14 @@ export interface BackendConfig {
   getHeaders?: () => Record<string, string>;
 }
 
+export interface BackendCapabilities {
+  canExportAll: boolean;
+  canSwitchTo: BackendMode[];
+  supportsOffline: boolean;
+  requiresAuth: boolean;
+  name: string;
+}
+
 export interface PromptBackend {
   listPrompts(): Promise<PromptInfo[]>;
   getPrompt(name: string): Promise<Prompt>;
@@ -94,6 +102,7 @@ export interface PromptBackend {
   exportPrompts(options: ExportOptions): Promise<Blob>;
   importFiles(files: File[], tags: string[]): Promise<ImportResult[]>;
   backupAllData(): Promise<Blob>;
+  getCapabilities(): BackendCapabilities;
 }
 
 // ============================================================================
@@ -300,6 +309,16 @@ class RemoteBackend implements PromptBackend {
   async backupAllData(): Promise<Blob> {
     // Call backend API to get all data as zip
     return this.fetchBlob('/api/backup', { method: 'GET' });
+  }
+
+  getCapabilities(): BackendCapabilities {
+    return {
+      name: 'Cloud Storage',
+      canExportAll: true,
+      canSwitchTo: ['remote'],
+      supportsOffline: false,
+      requiresAuth: false,
+    };
   }
 }
 

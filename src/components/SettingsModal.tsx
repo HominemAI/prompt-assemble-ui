@@ -4,7 +4,7 @@
 
 import React, { useState } from 'react';
 import { FiX, FiDownload } from 'react-icons/fi';
-import { backend } from '../utils/api';
+import { backend, BackendCapabilities } from '../utils/api';
 import '../styles/SettingsModal.css';
 
 interface SettingsModalProps {
@@ -12,6 +12,7 @@ interface SettingsModalProps {
   onClose: () => void;
   theme?: 'light' | 'dark';
   onThemeToggle?: () => void;
+  backendCapabilities?: BackendCapabilities;
 }
 
 const SettingsModal: React.FC<SettingsModalProps> = ({

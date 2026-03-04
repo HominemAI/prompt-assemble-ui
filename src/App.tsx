@@ -15,7 +15,7 @@ import {
   FiSettings,
 } from 'react-icons/fi';
 import { useTheme } from './hooks/useTheme';
-import { backend } from './utils/api';
+import { backend, BackendCapabilities, PromptBackend } from './utils/api';
 import { BackendProvider } from './contexts/BackendContext';
 import PromptExplorer from './components/PromptExplorer';
 import EditorPanel from './components/EditorPanel';
@@ -68,8 +68,18 @@ interface Prompt {
   updated_at?: string;
 }
 
-const App: React.FC = () => {
+interface AppProps {
+  backend?: PromptBackend;
+}
+
+const App: React.FC<AppProps> = ({ backend: injectedBackend }) => {
   const { theme, toggleTheme } = useTheme();
+
+  // Use injected backend or default singleton
+  const currentBackend = injectedBackend || backend;
+  const [backendCapabilities, setBackendCapabilities] = useState<BackendCapabilities>(
+    currentBackend.getCapabilities()
+  );
   // Initialize documents and activeDocId from localStorage
   const [documents, setDocuments] = useState<Document[]>(() => {
     if (typeof window !== 'undefined') {
@@ -1137,6 +1147,7 @@ You are a helpful assistant specializing in [[DOMAIN]].
         onClose={() => setShowSettings(false)}
         theme={theme}
         onThemeToggle={toggleTheme}
+        backendCapabilities={backendCapabilities}
       />
     </div>
     </BackendProvider>
