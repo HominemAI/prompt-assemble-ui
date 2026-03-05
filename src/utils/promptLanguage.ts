@@ -203,6 +203,87 @@ export function xmlLintExtension(): Extension {
   });
 }
 
+// Prompt Click Extension - enables Ctrl/Cmd+Click navigation to referenced prompts
+export function promptClickExtension(onPromptOpen: (name: string) => void): Extension {
+  return EditorView.domEventHandlers({
+    click: (event, view) => {
+      // Only handle Ctrl/Cmd+Click
+      if (!event.ctrlKey && !event.metaKey) {
+        return false;
+      }
+
+      // Get the position of the click
+      const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+      if (pos === null) {
+        return false;
+      }
+
+      const text = view.state.doc.toString();
+
+      // Find all PROMPT tokens with their positions
+      const promptRegex = /\[\[PROMPT:\s*([^\[\]\s][^\[\]]*?)\s*\]\]/g;
+      let match;
+      promptRegex.lastIndex = 0;
+
+      while ((match = promptRegex.exec(text)) !== null) {
+        const tokenStart = match.index;
+        const tokenEnd = match.index + match[0].length;
+
+        // Check if click position is inside this PROMPT token
+        if (pos >= tokenStart && pos < tokenEnd) {
+          // Extract the prompt name (capture group 1)
+          const promptName = match[1];
+          onPromptOpen(promptName);
+          event.preventDefault();
+          return true;
+        }
+      }
+
+      return false;
+    },
+    mousemove: (event, view) => {
+      // Only check hover state when Ctrl/Cmd is held
+      if (!event.ctrlKey && !event.metaKey) {
+        // Remove the clickable class if Ctrl/Cmd is released
+        const editor = view.dom;
+        editor.classList.remove('cm-prompt-clickable');
+        return false;
+      }
+
+      const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+      if (pos === null) {
+        view.dom.classList.remove('cm-prompt-clickable');
+        return false;
+      }
+
+      const text = view.state.doc.toString();
+      const promptRegex = /\[\[PROMPT:\s*([^\[\]\s][^\[\]]*?)\s*\]\]/g;
+      let match;
+      let isOverPrompt = false;
+      promptRegex.lastIndex = 0;
+
+      while ((match = promptRegex.exec(text)) !== null) {
+        const tokenStart = match.index;
+        const tokenEnd = match.index + match[0].length;
+
+        if (pos >= tokenStart && pos < tokenEnd) {
+          isOverPrompt = true;
+          break;
+        }
+      }
+
+      const editor = view.dom;
+      if (isOverPrompt) {
+        editor.classList.add('cm-prompt-clickable');
+      } else {
+        editor.classList.remove('cm-prompt-clickable');
+      }
+
+      return false;
+    },
+  });
+}
+
 // Bracket Matching Extension
 export function bracketMatchExtension(): Extension {
   return EditorView.decorations.compute(['doc', 'selection'], (state) => {

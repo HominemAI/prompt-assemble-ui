@@ -189,3 +189,8 @@
   background-color: rgba(252, 165, 165, 0.15);
   outline: 1px solid #fca5a5;
 }
+
+/* Pointer cursor for clickable PROMPT tokens */
+.cm-prompt-clickable .cm-content {
+  cursor: pointer !important;
+}

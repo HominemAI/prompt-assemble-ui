@@ -960,6 +960,15 @@ You are a helpful assistant specializing in [[DOMAIN]].
                 // Jump to line with bookmark comment
                 console.log('Jump to line:', line);
               }}
+              onPromptOpen={async (name) => {
+                const existing = prompts.find((p) => p.name === name);
+                if (existing) {
+                  handlePromptSelect(existing);
+                } else {
+                  // Prompt not found in list — try loading directly by name
+                  handlePromptSelect({ name, content: '', description: '', tags: [] });
+                }
+              }}
             />
           ) : (
             <div className="empty-state">
