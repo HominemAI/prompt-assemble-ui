@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { FiArrowUp, FiChevronRight, FiChevronLeft } from 'react-icons/fi';
 import CodeMirror from '@uiw/react-codemirror';
 import { oneDark } from '@codemirror/theme-one-dark';
-import { promptSyntaxHighlight } from '../utils/promptLanguage';
+import { promptSyntaxHighlight, xmlLintExtension, bracketMatchExtension } from '../utils/promptLanguage';
 import { countTokens, formatTokenCount } from '../utils/tokenCounter';
 import '../styles/EditorPanel.css';
 
@@ -255,7 +255,7 @@ const EditorPanel: React.FC<EditorPanelProps> = ({
           onChange={handleContentChange}
           theme={oneDark}
           className="editor-codemirror"
-          extensions={[promptSyntaxHighlight()]}
+          extensions={[promptSyntaxHighlight(), xmlLintExtension(), bracketMatchExtension()]}
           basicSetup={{
             lineNumbers: true,
             highlightActiveLineGutter: true,
