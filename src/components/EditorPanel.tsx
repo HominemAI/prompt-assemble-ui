@@ -1,8 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { FiArrowUp, FiChevronRight, FiChevronLeft } from 'react-icons/fi';
 import CodeMirror from '@uiw/react-codemirror';
 import { oneDark } from '@codemirror/theme-one-dark';
-import { promptSyntaxHighlight } from '../utils/promptLanguage';
+import { promptSyntaxHighlight, xmlLintExtension, bracketMatchExtension, promptClickExtension } from '../utils/promptLanguage';
 import { countTokens, formatTokenCount } from '../utils/tokenCounter';
 import '../styles/EditorPanel.css';
 
@@ -23,6 +23,7 @@ interface EditorPanelProps {
   allPrompts: Prompt[];
   onContentChange: (content: string) => void;
   onBookmarkJump: (line: number) => void;
+  onPromptOpen?: (name: string) => void;
 }
 
 interface AutocompleteState {
@@ -39,6 +40,7 @@ const EditorPanel: React.FC<EditorPanelProps> = ({
   allPrompts,
   onContentChange,
   onBookmarkJump,
+  onPromptOpen,
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -209,6 +211,16 @@ const EditorPanel: React.FC<EditorPanelProps> = ({
     return Array.from({ length: lines }, (_, i) => i + 1);
   };
 
+  const extensions = useMemo(
+    () => [
+      promptSyntaxHighlight(),
+      xmlLintExtension(),
+      bracketMatchExtension(),
+      ...(onPromptOpen ? [promptClickExtension(onPromptOpen)] : []),
+    ],
+    [onPromptOpen]
+  );
+
   // Guard against missing document
   if (!document) {
     return (
@@ -255,7 +267,7 @@ const EditorPanel: React.FC<EditorPanelProps> = ({
           onChange={handleContentChange}
           theme={oneDark}
           className="editor-codemirror"
-          extensions={[promptSyntaxHighlight()]}
+          extensions={extensions}
           basicSetup={{
             lineNumbers: true,
             highlightActiveLineGutter: true,
