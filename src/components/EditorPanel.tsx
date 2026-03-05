@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { FiArrowUp, FiChevronRight, FiChevronLeft } from 'react-icons/fi';
 import CodeMirror from '@uiw/react-codemirror';
 import { oneDark } from '@codemirror/theme-one-dark';
+import { xml } from '@codemirror/lang-xml';
 import { promptSyntaxHighlight, xmlLintExtension, bracketMatchExtension, promptClickExtension } from '../utils/promptLanguage';
 import { countTokens, formatTokenCount } from '../utils/tokenCounter';
 import '../styles/EditorPanel.css';
@@ -213,6 +214,7 @@ const EditorPanel: React.FC<EditorPanelProps> = ({
 
   const extensions = useMemo(
     () => [
+      xml(),
       promptSyntaxHighlight(),
       xmlLintExtension(),
       bracketMatchExtension(),
@@ -276,8 +278,8 @@ const EditorPanel: React.FC<EditorPanelProps> = ({
             allowMultipleSelections: true,
             indentOnInput: false,
             bracketMatching: true,
-            closeBrackets: true,
-            autocompletion: true,
+            closeBrackets: false,
+            autocompletion: false,
             rectangularSelection: true,
             highlightSelectionMatches: true,
             searchKeymap: true,
