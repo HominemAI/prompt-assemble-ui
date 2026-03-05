@@ -4,18 +4,16 @@ import { RangeSetBuilder } from '@codemirror/state';
 import { linter, Diagnostic } from '@codemirror/lint';
 
 // Create custom mark decorations for our syntax tokens
-// These are read-only and don't interfere with editing
-const varMark = Decoration.mark({ class: 'cm-prompt-var', readonly: false });
-const componentMark = Decoration.mark({ class: 'cm-prompt-component', readonly: false });
-const componentNameMark = Decoration.mark({ class: 'cm-prompt-name', readonly: false });
-const tagMark = Decoration.mark({ class: 'cm-prompt-tag', readonly: false });
-const tagNameMark = Decoration.mark({ class: 'cm-prompt-name', readonly: false });
-const commentMark = Decoration.mark({ class: 'cm-prompt-comment', readonly: false });
-const xmlTagMark = Decoration.mark({ class: 'cm-xml-tag', readonly: false });
+// Allow normal cursor placement and editing - marks are for styling only
+const varMark = Decoration.mark({ class: 'cm-prompt-var', readonly: false, inclusiveStart: true, inclusiveEnd: true });
+const componentMark = Decoration.mark({ class: 'cm-prompt-component', readonly: false, inclusiveStart: true, inclusiveEnd: true });
+const componentNameMark = Decoration.mark({ class: 'cm-prompt-name', readonly: false, inclusiveStart: true, inclusiveEnd: true });
+const tagMark = Decoration.mark({ class: 'cm-prompt-tag', readonly: false, inclusiveStart: true, inclusiveEnd: true });
+const tagNameMark = Decoration.mark({ class: 'cm-prompt-name', readonly: false, inclusiveStart: true, inclusiveEnd: true });
+const commentMark = Decoration.mark({ class: 'cm-prompt-comment', readonly: false, inclusiveStart: true, inclusiveEnd: true });
 
-// Decorations for bracket and tag matching
-const bracketMatchMark = Decoration.mark({ class: 'cm-bracket-match', readonly: false });
-const xmlTagMatchMark = Decoration.mark({ class: 'cm-xml-tag-match', readonly: false });
+// Decorations for bracket matching
+const bracketMatchMark = Decoration.mark({ class: 'cm-bracket-match', readonly: false, inclusiveStart: true, inclusiveEnd: true });
 
 // Plugin to highlight our custom syntax
 export function promptSyntaxHighlight(): Extension {
@@ -31,8 +29,7 @@ export function promptSyntaxHighlight(): Extension {
       { regex: /\[\[PROMPT_TAG:\d*:[^\]]*\]\]|\[\[PROMPT_TAG:[^\]]*\]\]/g, mark: tagMark },
       { regex: /\[\[PROMPT:[^\]]*\]\]/g, mark: componentMark },
       { regex: /\[\[[A-Za-z_][A-Za-z0-9_]*\]\]/g, mark: varMark },
-      // Only match complete XML tags that are NOT part of our special syntax
-      { regex: /<(?!--)(?!!\[)(?:\/)?([a-zA-Z_][a-zA-Z0-9_:-]*)\b[^<]*?(?:\/)?>/g, mark: xmlTagMark },
+      // HTML/XML tags are now handled by the built-in @codemirror/lang-html mode
     ];
 
     // Collect all matches
@@ -81,8 +78,12 @@ export function promptSyntaxHighlight(): Extension {
       });
     }
 
-    // Sort by position and add to builder
-    matches.sort((a, b) => a.from - b.from);
+    // Sort by position, with larger ranges first when starting at same position
+    // This handles overlapping ranges properly for CodeMirror
+    matches.sort((a, b) => {
+      if (a.from !== b.from) return a.from - b.from;
+      return b.to - a.to; // Larger ranges first
+    });
     for (const { from, to, mark } of matches) {
       builder.add(from, to, mark);
     }
@@ -225,17 +226,29 @@ export function promptClickExtension(onPromptOpen: (name: string) => void): Exte
       let match;
       promptRegex.lastIndex = 0;
 
+      // Look for a PROMPT token near the click position (within 50 chars)
       while ((match = promptRegex.exec(text)) !== null) {
         const tokenStart = match.index;
         const tokenEnd = match.index + match[0].length;
+        const searchRadius = 50; // Allow clicking slightly outside the token
 
-        // Check if click position is inside this PROMPT token
-        if (pos >= tokenStart && pos < tokenEnd) {
-          // Extract the prompt name (capture group 1)
-          const promptName = match[1];
-          onPromptOpen(promptName);
-          event.preventDefault();
-          return true;
+        // Check if click position is near this PROMPT token
+        if (pos >= tokenStart - searchRadius && pos <= tokenEnd + searchRadius) {
+          // Verify the click is actually on this line to avoid false positives
+          // Count newlines from token start to click position
+          const beforeToken = text.substring(0, tokenStart);
+          const beforeClick = text.substring(0, pos);
+          const tokenLineNum = (beforeToken.match(/\n/g) || []).length;
+          const clickLineNum = (beforeClick.match(/\n/g) || []).length;
+
+          // Only trigger if on the same line
+          if (tokenLineNum === clickLineNum) {
+            // Extract the prompt name (capture group 1)
+            const promptName = match[1].trim();
+            onPromptOpen(promptName);
+            event.preventDefault();
+            return true;
+          }
         }
       }
 
@@ -313,97 +326,7 @@ export function bracketMatchExtension(): Extension {
       }
     }
 
-    // Find matching XML tags
-    const cleanText = text
-      .replace(/\[\[[^\]]*\]\]/g, (match) => ' '.repeat(match.length))
-      .replace(/<!--[\s\S]*?-->/g, (match) => ' '.repeat(match.length));
-
-    const tagRegex = /<(\/)?([a-zA-Z_][a-zA-Z0-9_:-]*)(\s[^>]*)?(\/)?>/g;
-    const tags: Array<{
-      isClose: boolean;
-      name: string;
-      isSelfClosing: boolean;
-      from: number;
-      to: number;
-    }> = [];
-
-    let tagMatch;
-    tagRegex.lastIndex = 0;
-    while ((tagMatch = tagRegex.exec(cleanText)) !== null) {
-      const [fullMatch, openingSlash, tagName, attributes, closingSlash] = tagMatch;
-      const isClose = !!openingSlash;
-      const isSelfClosing = !!closingSlash;
-      tags.push({
-        isClose,
-        name: tagName,
-        isSelfClosing,
-        from: tagMatch.index,
-        to: tagMatch.index + fullMatch.length,
-      });
-    }
-
-    // Find if cursor is in a tag
-    let cursorInTag: (typeof tags)[0] | null = null;
-    for (const tag of tags) {
-      if (cursor >= tag.from && cursor <= tag.to) {
-        cursorInTag = tag;
-        break;
-      }
-    }
-
-    if (cursorInTag && !cursorInTag.isSelfClosing) {
-      if (!cursorInTag.isClose) {
-        // Cursor is in an opening tag, find matching closing tag
-        const stack: Array<{ name: string; tag: (typeof tags)[0] }> = [];
-        let foundMatch: (typeof tags)[0] | null = null;
-
-        for (const tag of tags) {
-          if (tag.isSelfClosing) continue;
-
-          if (!tag.isClose) {
-            stack.push({ name: tag.name, tag });
-          } else {
-            if (stack.length > 0 && stack[stack.length - 1].name === tag.name) {
-              const opening = stack.pop();
-              if (opening?.tag === cursorInTag) {
-                foundMatch = tag;
-                break;
-              }
-            }
-          }
-        }
-
-        if (foundMatch) {
-          builder.add(cursorInTag.from, cursorInTag.to, xmlTagMatchMark);
-          builder.add(foundMatch.from, foundMatch.to, xmlTagMatchMark);
-        }
-      } else {
-        // Cursor is in a closing tag, find matching opening tag
-        const stack: Array<{ name: string; tag: (typeof tags)[0] }> = [];
-        let foundMatch: (typeof tags)[0] | null = null;
-
-        for (const tag of tags) {
-          if (tag.isSelfClosing) continue;
-
-          if (!tag.isClose) {
-            stack.push({ name: tag.name, tag });
-          } else {
-            if (stack.length > 0 && stack[stack.length - 1].name === tag.name) {
-              const opening = stack.pop();
-              if (tag === cursorInTag) {
-                foundMatch = opening?.tag || null;
-                break;
-              }
-            }
-          }
-        }
-
-        if (foundMatch) {
-          builder.add(cursorInTag.from, cursorInTag.to, xmlTagMatchMark);
-          builder.add(foundMatch.from, foundMatch.to, xmlTagMatchMark);
-        }
-      }
-    }
+    // XML/HTML tag matching is now handled by the built-in @codemirror/lang-html mode
 
     return builder.finish();
   });
