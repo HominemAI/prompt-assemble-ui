@@ -264,7 +264,13 @@ const RenderModal: React.FC<RenderModalProps> = ({
 
   if (!isOpen) return null;
 
-  const displayOutput = outputFormat === 'json' ? xmlToJson(output) : formatXml(output);
+  const displayOutput = (() => {
+    if (outputFormat === 'json') {
+      const parsed = xmlToJson(output);
+      return typeof parsed === 'string' ? parsed : JSON.stringify(parsed, null, 2);
+    }
+    return formatXml(output);
+  })();
 
   return (
     <div
