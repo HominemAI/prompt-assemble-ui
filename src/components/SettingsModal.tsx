@@ -3,7 +3,7 @@
  */
 
 import React, { useState } from 'react';
-import { FiX, FiDownload } from 'react-icons/fi';
+import { FiX, FiDownload, FiSun, FiMoon, FiGithub } from 'react-icons/fi';
 import { backend, BackendCapabilities } from '../utils/api';
 import '../styles/SettingsModal.css';
 
@@ -63,38 +63,39 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         <div className="modal-body">
-          <div className="settings-section">
-            <h3>📦 Backup</h3>
-            <p className="settings-description">
-              Download a ZIP file containing all your prompts, variable sets, and metadata.
-            </p>
+          <div className="quick-items-section">
             <button
-              className="btn btn-primary"
+              className="quick-item-btn"
+              onClick={onThemeToggle}
+              title="Toggle dark/light mode"
+              style={{ background: '#3b82f6', borderColor: '#2563eb', color: 'white' }}
+            >
+              {theme === 'light' ? <FiMoon size={20} /> : <FiSun size={20} />}
+            </button>
+
+            <button
+              className="quick-item-btn download-btn"
               onClick={handleBackupAllData}
               disabled={isBackingUp}
+              title="Download backup"
             >
-              <FiDownload size={18} />
-              {isBackingUp ? 'Creating Backup...' : 'Download Backup'}
+              <FiDownload size={20} />
             </button>
-            {error && <div className="error-message">{error}</div>}
-            {progress && <p className="progress-message">{progress}</p>}
+
+            <a
+              href="https://github.com/HominemAI/prompt-assemble-ui"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="quick-item-btn"
+              title="View on GitHub"
+            >
+              <FiGithub size={20} />
+            </a>
           </div>
 
-          <div className="settings-section">
-            <h3>🎨 Appearance</h3>
-            <p className="settings-description">
-              Choose your preferred color scheme.
-            </p>
-            <div className="theme-toggle">
-              <button
-                className={`theme-btn ${theme === 'light' ? 'active' : ''}`}
-                onClick={onThemeToggle}
-                title="Toggle light/dark mode"
-              >
-                {theme === 'light' ? '☀️ Light Mode' : '🌙 Dark Mode'}
-              </button>
-            </div>
-          </div>
+          {error && <div className="error-message">{error}</div>}
+          {progress && <p className="progress-message">{progress}</p>}
+
 
           <div className="modal-footer">
             <button className="btn btn-secondary" onClick={onClose}>
