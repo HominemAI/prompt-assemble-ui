@@ -59,6 +59,11 @@
   @apply w-16;
 }
 
+/* Mobile drawer positioning override */
+@media (max-width: 767px) {
+  .left-panel { position: fixed !important; }
+}
+
 .right-panel {
   @apply flex-1 flex flex-col overflow-hidden bg-white dark:bg-slate-950;
 }
