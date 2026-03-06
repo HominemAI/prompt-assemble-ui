@@ -7,6 +7,7 @@ import {
   FiTrash2,
   FiDownload,
   FiMenu,
+  FiMoreHorizontal,
   FiLock,
   FiUnlock,
   FiCode,
@@ -120,6 +121,8 @@ const App: React.FC<AppProps> = ({ backend: injectedBackend }) => {
   const [showVariableSetSelector, setShowVariableSetSelector] = useState(false);
   const [showRenderModal, setShowRenderModal] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(true);
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const [toolbarMenuOpen, setToolbarMenuOpen] = useState(false);
 
   const [showSettings, setShowSettings] = useState(false);
 
@@ -174,6 +177,14 @@ const App: React.FC<AppProps> = ({ backend: injectedBackend }) => {
       }
     }
   }, [activeDocId]);
+
+  // Close toolbar menu on outside click
+  useEffect(() => {
+    if (!toolbarMenuOpen) return;
+    const close = () => setToolbarMenuOpen(false);
+    document.addEventListener('click', close);
+    return () => document.removeEventListener('click', close);
+  }, [toolbarMenuOpen]);
 
   // Load prompts on mount and setup offline/online listeners
   useEffect(() => {
@@ -665,6 +676,8 @@ You are a helpful assistant specializing in [[DOMAIN]].
   };
 
   const handlePromptSelect = async (prompt: Prompt) => {
+    // Close mobile drawer
+    setMobileDrawerOpen(false);
     // Check if this prompt is already open in a document
     const existingDoc = documents.find((d) => d.name === prompt.name);
     if (existingDoc) {
@@ -783,6 +796,15 @@ You are a helpful assistant specializing in [[DOMAIN]].
       <div className="app-container">
       {/* Header with Branding and Theme Toggle */}
       <div className="app-header">
+        <div className="flex items-center md:hidden">
+          <button
+            className="flex items-center p-2 md:hidden"
+            onClick={() => setMobileDrawerOpen(true)}
+            aria-label="Open menu"
+          >
+            <FiMenu size={20} />
+          </button>
+        </div>
         <div className="app-branding">
           <h1>PAMBL</h1>
           <div className="branding-byline">
@@ -821,8 +843,19 @@ You are a helpful assistant specializing in [[DOMAIN]].
         </button>
       </div>
       <div className="app-layout">
+        {/* Backdrop for mobile drawer */}
+        {mobileDrawerOpen && (
+          <div
+            className="fixed inset-0 bg-black/40 z-[299] md:hidden"
+            onClick={() => setMobileDrawerOpen(false)}
+          />
+        )}
         {/* Left Panel - Prompt Explorer */}
-        <div className={`left-panel ${sidebarVisible ? '' : 'collapsed'}`}>
+        <div
+          className={`left-panel fixed top-0 left-0 h-screen z-[300] w-[280px]
+            transition-transform duration-[250ms] ease-in-out
+            md:relative md:translate-x-0 md:h-auto md:z-auto md:shadow-none md:w-80
+            ${mobileDrawerOpen ? 'translate-x-0 shadow-xl' : '-translate-x-full'} ${sidebarVisible ? '' : 'collapsed'}`}>
           <PromptExplorer
             prompts={prompts}
             allTags={allTags}
@@ -903,31 +936,6 @@ You are a helpful assistant specializing in [[DOMAIN]].
                     Save
                   </button>
                 )}
-                {activeDoc.savedAt && (
-                  <button
-                    className="btn btn-danger"
-                    onClick={() => deleteDocument(activeDocId!)}
-                    title="Delete this document"
-                  >
-                    <FiTrash2 size={18} />
-                    Delete
-                  </button>
-                )}
-                <button
-                  className="btn btn-info"
-                  onClick={() => setShowExport(true)}
-                >
-                  <FiDownload size={18} />
-                  Export
-                </button>
-                <button
-                  className="btn btn-default"
-                  onClick={() => setShowVariableSetSelector(true)}
-                  title="Select and override variable sets"
-                >
-                  <FiCode size={18} />
-                  Variables
-                </button>
                 <button
                   className="btn btn-default"
                   onClick={() => setShowRenderModal(true)}
@@ -936,15 +944,89 @@ You are a helpful assistant specializing in [[DOMAIN]].
                   <FiPlay size={18} />
                   Render
                 </button>
-                <div style={{ marginLeft: 'auto' }} />
+                {activeDoc.savedAt && (
+                  <button
+                    className="btn btn-danger hidden md:flex"
+                    onClick={() => deleteDocument(activeDocId!)}
+                    title="Delete this document"
+                  >
+                    <FiTrash2 size={18} />
+                    Delete
+                  </button>
+                )}
                 <button
-                  className="btn btn-secondary"
+                  className="btn btn-info hidden md:flex"
+                  onClick={() => setShowExport(true)}
+                >
+                  <FiDownload size={18} />
+                  Export
+                </button>
+                <button
+                  className="btn btn-default hidden md:flex"
+                  onClick={() => setShowVariableSetSelector(true)}
+                  title="Select and override variable sets"
+                >
+                  <FiCode size={18} />
+                  Variables
+                </button>
+                <button
+                  className="btn btn-secondary hidden md:flex"
                   onClick={() => setShowVersionHistory(true)}
                   title="View version history and revision comments"
                 >
                   <FiClock size={18} />
                   History
                 </button>
+                <div style={{ marginLeft: 'auto' }} />
+                <div className="relative flex md:hidden">
+                  <button
+                    className="btn btn-default"
+                    onClick={(e) => { e.stopPropagation(); setToolbarMenuOpen(o => !o); }}
+                    aria-label="More actions"
+                  >
+                    <FiMoreHorizontal size={18} />
+                  </button>
+                  {toolbarMenuOpen && (
+                    <div
+                      className="absolute top-full right-0 mt-1 z-50 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md shadow-lg min-w-[180px] flex flex-col p-1"
+                      onClick={() => setToolbarMenuOpen(false)}
+                    >
+                      {activeDoc.savedAt && (
+                        <button
+                          className="btn btn-danger w-full flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium cursor-pointer border-0 transition-colors whitespace-nowrap justify-start"
+                          onClick={() => deleteDocument(activeDocId!)}
+                          title="Delete this document"
+                        >
+                          <FiTrash2 size={18} />
+                          Delete
+                        </button>
+                      )}
+                      <button
+                        className="btn btn-info w-full flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium cursor-pointer border-0 transition-colors whitespace-nowrap justify-start"
+                        onClick={() => setShowExport(true)}
+                      >
+                        <FiDownload size={18} />
+                        Export
+                      </button>
+                      <button
+                        className="btn btn-default w-full flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium cursor-pointer border-0 transition-colors whitespace-nowrap justify-start"
+                        onClick={() => setShowVariableSetSelector(true)}
+                        title="Select and override variable sets"
+                      >
+                        <FiCode size={18} />
+                        Variables
+                      </button>
+                      <button
+                        className="btn btn-secondary w-full flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium cursor-pointer border-0 transition-colors whitespace-nowrap justify-start"
+                        onClick={() => setShowVersionHistory(true)}
+                        title="View version history and revision comments"
+                      >
+                        <FiClock size={18} />
+                        History
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
