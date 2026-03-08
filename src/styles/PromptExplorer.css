@@ -128,11 +128,11 @@
 }
 
 .prompt-name {
-  @apply font-semibold text-sm text-slate-900 dark:text-slate-100 mb-1 break-words flex items-center justify-between;
+  @apply font-semibold text-sm text-slate-900 dark:text-slate-100 mb-1 break-words flex items-center justify-between flex-row-reverse;
 }
 
 .prompt-copy-btn-wrapper {
-  @apply relative ml-2;
+  @apply relative mr-2;
 }
 
 .prompt-copy-btn {

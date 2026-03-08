@@ -91,6 +91,86 @@ npm run test:ui
 npm run test:coverage
 ```
 
+## Deployment
+
+### Docker Compose
+
+```yaml
+version: '3.8'
+
+services:
+  frontend:
+    image: ghcr.io/HominemAI/prompt-assemble-ui:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_BASE_URL=http://backend:8000
+    depends_on:
+      - backend
+
+  backend:
+    image: ghcr.io/HominemAI/prompt-assemble:latest
+    ports:
+      - "8000:8000"
+```
+
+Run with: `docker-compose up`
+
+### Kubernetes
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-config
+data:
+  VITE_API_BASE_URL: "http://backend-service:8000"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prompt-assemble-ui
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: prompt-assemble-ui
+  template:
+    metadata:
+      labels:
+        app: prompt-assemble-ui
+    spec:
+      containers:
+      - name: frontend
+        image: ghcr.io/HominemAI/prompt-assemble-ui:latest
+        ports:
+        - containerPort: 3000
+        envFrom:
+        - configMapRef:
+            name: frontend-config
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-service
+spec:
+  selector:
+    app: prompt-assemble-ui
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 3000
+  type: LoadBalancer
+```
+
 ## Project Structure
 
 ```
