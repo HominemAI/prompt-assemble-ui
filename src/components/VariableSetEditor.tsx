@@ -1,17 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { FiX, FiPlus, FiTrash2, FiArrowLeft } from 'react-icons/fi';
+import { VariableSet } from '../utils/api';
 import ConfirmModal from './ConfirmModal';
 import '../styles/VariableSetEditor.css';
-
-interface VariableSet {
-  id: string;
-  name: string;
-  variables: Record<string, string>;
-}
 
 interface VariableItem {
   key: string;
   value: string;
+  tag?: string;
+  id?: string;
 }
 
 interface VariableSetEditorProps {
@@ -35,6 +32,7 @@ const VariableSetEditor: React.FC<VariableSetEditorProps> = ({
   onDelete,
 }) => {
   const [setName, setSetName] = useState(variableSet.name);
+  const [setOwner, setSetOwner] = useState(variableSet.owner || '');
   const [variables, setVariables] = useState<VariableItem[]>([]);
   const [unsavedModal, setUnsavedModal] = useState<UnsavedModal>({ isOpen: false, action: null });
   const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; step: 1 | 2 }>({
@@ -45,27 +43,43 @@ const VariableSetEditor: React.FC<VariableSetEditorProps> = ({
 
   // Initialize variables from variableSet
   useEffect(() => {
-    const vars = Object.entries(variableSet.variables).map(([key, value], idx) => ({
-      key,
-      value,
-      id: `${key}-${idx}`,
-    }));
-    setVariables(vars as any);
+    const vars = Object.entries(variableSet.variables).map(([key, val], idx) => {
+      if (typeof val === 'object' && val !== null && 'value' in val) {
+        return {
+          key,
+          value: val.value,
+          tag: val.tag || '',
+          id: `${key}-${idx}`,
+        };
+      }
+      return {
+        key,
+        value: String(val),
+        tag: '',
+        id: `${key}-${idx}`,
+      };
+    });
+    setVariables(vars);
   }, [variableSet]);
 
   const hasUnsavedChanges = () => {
     const currentVariables = variables.reduce(
       (acc, v) => {
         if (v.key.trim() !== '' || v.value.trim() !== '') {
-          acc[v.key] = v.value;
+          if (v.tag && v.tag.trim() !== '') {
+            acc[v.key] = { value: v.value, tag: v.tag };
+          } else {
+            acc[v.key] = v.value;
+          }
         }
         return acc;
       },
-      {} as Record<string, string>
+      {} as Record<string, string | { value: string; tag?: string }>
     );
 
     return (
       setName !== variableSet.name ||
+      setOwner !== (variableSet.owner || '') ||
       JSON.stringify(currentVariables) !== JSON.stringify(variableSet.variables)
     );
   };
@@ -86,16 +100,21 @@ const VariableSetEditor: React.FC<VariableSetEditorProps> = ({
     const cleanVariables = variables.reduce(
       (acc, v) => {
         if (v.key.trim() !== '' || v.value.trim() !== '') {
-          acc[v.key] = v.value;
+          if (v.tag && v.tag.trim() !== '') {
+            acc[v.key] = { value: v.value, tag: v.tag };
+          } else {
+            acc[v.key] = v.value;
+          }
         }
         return acc;
       },
-      {} as Record<string, string>
+      {} as Record<string, string | { value: string; tag?: string }>
     );
 
     const updatedSet: VariableSet = {
       ...variableSet,
       name: setName,
+      owner: setOwner || null,
       variables: cleanVariables,
     };
 
@@ -103,12 +122,12 @@ const VariableSetEditor: React.FC<VariableSetEditorProps> = ({
   };
 
   const handleAddVariable = () => {
-    setVariables([...variables, { key: '', value: '', id: `new-${Date.now()}` }] as any);
+    setVariables([...variables, { key: '', value: '', tag: '', id: `new-${Date.now()}` }]);
   };
 
   const handleUpdateVariable = (
     index: number,
-    field: 'key' | 'value',
+    field: 'key' | 'value' | 'tag',
     newValue: string
   ) => {
     const updated = [...variables];
@@ -159,13 +178,22 @@ const VariableSetEditor: React.FC<VariableSetEditorProps> = ({
           <button className="back-btn" onClick={() => attemptToLeave('back')}>
             <FiArrowLeft size={20} />
           </button>
-          <input
-            type="text"
-            value={setName}
-            onChange={(e) => setSetName(e.target.value)}
-            className="form-input"
-            placeholder="Variable Set Name"
-          />
+          <div className="header-inputs">
+            <input
+              type="text"
+              value={setName}
+              onChange={(e) => setSetName(e.target.value)}
+              className="form-input"
+              placeholder="Variable Set Name"
+            />
+            <input
+              type="text"
+              value={setOwner}
+              onChange={(e) => setSetOwner(e.target.value)}
+              className="form-input owner-input"
+              placeholder="Owner (optional)"
+            />
+          </div>
           <button className="modal-close-btn" onClick={() => attemptToLeave('close')}>
             <FiX size={20} />
           </button>
@@ -174,19 +202,28 @@ const VariableSetEditor: React.FC<VariableSetEditorProps> = ({
         <div className="variables-container">
           {variables.map((variable, index) => (
             <div key={index} className="variable-item">
-              <input
-                type="text"
-                value={variable.key}
-                onChange={(e) => handleUpdateVariable(index, 'key', e.target.value)}
-                placeholder="Key"
-                className="form-input"
-              />
-              <textarea
-                value={variable.value}
-                onChange={(e) => handleUpdateVariable(index, 'value', e.target.value)}
-                placeholder="Value"
-                className="form-input"
-              />
+              <div className="variable-fields">
+                <input
+                  type="text"
+                  value={variable.key}
+                  onChange={(e) => handleUpdateVariable(index, 'key', e.target.value)}
+                  placeholder="Key"
+                  className="form-input"
+                />
+                <textarea
+                  value={variable.value}
+                  onChange={(e) => handleUpdateVariable(index, 'value', e.target.value)}
+                  placeholder="Value"
+                  className="form-input"
+                />
+                <input
+                  type="text"
+                  value={variable.tag || ''}
+                  onChange={(e) => handleUpdateVariable(index, 'tag', e.target.value)}
+                  placeholder="XML Tag (optional)"
+                  className="form-input tag-input"
+                />
+              </div>
               <button
                 className={`delete-var-btn ${deleteLineId === index.toString() ? 'confirm' : ''}`}
                 onClick={() => handleDeleteVariable(index)}

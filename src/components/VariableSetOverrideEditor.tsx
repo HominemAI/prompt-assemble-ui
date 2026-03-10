@@ -1,12 +1,7 @@
 import React, { useState } from 'react';
 import { FiX, FiArrowLeft } from 'react-icons/fi';
+import { VariableSet } from '../utils/api';
 import '../styles/VariableSetOverrideEditor.css';
-
-interface VariableSet {
-  id: string;
-  name: string;
-  variables: Record<string, string>;
-}
 
 interface VariableSetOverrideEditorProps {
   variableSet: VariableSet;
@@ -32,6 +27,14 @@ const VariableSetOverrideEditor: React.FC<VariableSetOverrideEditorProps> = ({
 
   const handleSave = () => {
     onSave(currentOverrides);
+  };
+
+  // Helper to extract string value from variable (handles both simple strings and tagged objects)
+  const resolveVariableValue = (value: string | { value: string; tag?: string }): string => {
+    if (typeof value === 'object' && value !== null && 'value' in value) {
+      return value.value;
+    }
+    return String(value);
   };
 
   const variables = Object.entries(variableSet.variables);
@@ -61,7 +64,7 @@ const VariableSetOverrideEditor: React.FC<VariableSetOverrideEditorProps> = ({
                 <div className="variable-label">
                   <span className="key">{key}</span>
                   <span className="default-value-label">Default:</span>
-                  <span className="default-value">{defaultValue}</span>
+                  <span className="default-value">{resolveVariableValue(defaultValue)}</span>
                 </div>
                 <textarea
                   value={currentOverrides[key] ?? ''}

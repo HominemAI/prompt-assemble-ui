@@ -47,7 +47,8 @@ export interface SavePromptData {
 export interface VariableSet {
   id: string;
   name: string;
-  variables: Record<string, string>;
+  owner?: string | null;
+  variables: Record<string, string | { value: string; tag?: string }>;
 }
 
 export interface PromptVarSetData {
@@ -309,6 +310,76 @@ class RemoteBackend implements PromptBackend {
   async backupAllData(): Promise<Blob> {
     // Call backend API to get all data as zip
     return this.fetchBlob('/api/backup', { method: 'GET' });
+  }
+
+  async getVariableSet(id: string): Promise<VariableSet> {
+    return this.fetchJson<VariableSet>(`/api/variable-sets/${id}`);
+  }
+
+  async updateVariableSet(id: string, set: VariableSet): Promise<void> {
+    await this.fetchJson(`/api/variable-sets/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        name: set.name,
+        owner: set.owner,
+        variables: set.variables,
+      }),
+    });
+  }
+
+  async addVariableToSet(
+    setId: string,
+    key: string,
+    value: string,
+    tag?: string
+  ): Promise<void> {
+    await this.fetchJson(`/api/variable-sets/${setId}/variables`, {
+      method: 'POST',
+      body: JSON.stringify({ key, value, tag }),
+    });
+  }
+
+  async removeVariableFromSet(setId: string, key: string): Promise<void> {
+    await this.fetchJson(`/api/variable-sets/${setId}/variables/${encodeURIComponent(key)}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async findVariableSets(
+    name?: string,
+    owner?: string,
+    matchType: 'exact' | 'partial' = 'exact'
+  ): Promise<VariableSet[]> {
+    const response = await this.fetchJson<{ variable_sets: VariableSet[] }>(
+      '/api/variable-sets/find',
+      {
+        method: 'POST',
+        body: JSON.stringify({ name, owner, match_type: matchType }),
+      }
+    );
+    return response.variable_sets;
+  }
+
+  async renderPrompt(
+    name: string,
+    variables?: Record<string, string>,
+    variableSets?: string[],
+    recursive: boolean = true,
+    maxDepth: number = 10
+  ): Promise<string> {
+    const response = await this.fetchJson<{ rendered: string }>(
+      `/api/prompts/${encodeURIComponent(name)}/render`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          variables: variables || {},
+          variable_sets: variableSets || [],
+          recursive,
+          max_depth: maxDepth,
+        }),
+      }
+    );
+    return response.rendered;
   }
 
   getCapabilities(): BackendCapabilities {

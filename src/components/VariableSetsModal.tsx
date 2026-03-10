@@ -1,14 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { FiX, FiPlus, FiSearch } from 'react-icons/fi';
+import { VariableSet } from '../utils/api';
 import VariableSetEditor from './VariableSetEditor';
 import { useBackend } from '../contexts/BackendContext';
 import '../styles/VariableSetsModal.css';
-
-interface VariableSet {
-  id: string;
-  name: string;
-  variables: Record<string, string>;
-}
 
 interface VariableSetsModalProps {
   isOpen: boolean;
