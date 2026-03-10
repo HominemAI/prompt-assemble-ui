@@ -16,7 +16,7 @@ import {
   FiSettings,
 } from 'react-icons/fi';
 import { useTheme } from './hooks/useTheme';
-import { backend, BackendCapabilities, PromptBackend } from './utils/api';
+import { backend, BackendCapabilities, PromptBackend, VariableSet } from './utils/api';
 import { BackendProvider } from './contexts/BackendContext';
 import PromptExplorer from './components/PromptExplorer';
 import EditorPanel from './components/EditorPanel';
@@ -34,12 +34,6 @@ import './App.css';
 
 const lightLogo = '/logos/light_black.svg';
 const darkLogo = '/logos/dark_white.svg';
-
-interface VariableSet {
-  id: string;
-  name: string;
-  variables: Record<string, string>;
-}
 
 interface Document {
   id: string;
@@ -265,7 +259,14 @@ const App: React.FC<AppProps> = ({ backend: injectedBackend }) => {
     for (const setId of setIds) {
       const varSet = variableSets.find((vs) => vs.id === setId);
       if (varSet) {
-        merged = { ...merged, ...varSet.variables };
+        // Extract string values from variables (handle both simple strings and tagged objects)
+        for (const [key, value] of Object.entries(varSet.variables)) {
+          if (typeof value === 'object' && value !== null && 'value' in value) {
+            merged[key] = value.value;
+          } else {
+            merged[key] = String(value);
+          }
+        }
       }
 
       // Apply overrides for this set (overrides win)

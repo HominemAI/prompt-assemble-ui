@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  frontend:
+    image: ghcr.io/hominemai/prompt-assemble-ui:latest
+    container_name: prompt-assemble-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_BASE_URL=http://backend:8000
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  backend:
+    image: ghcr.io/hominemai/prompt-assemble:latest
+    container_name: prompt-assemble-backend
+    ports:
+      - "8000:8000"
+    restart: unless-stopped

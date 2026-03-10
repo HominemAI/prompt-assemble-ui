@@ -1,12 +1,7 @@
 import React, { useState } from 'react';
 import { FiX, FiSearch, FiCheck } from 'react-icons/fi';
+import { VariableSet } from '../utils/api';
 import '../styles/VariableSetsSelection.css';
-
-interface VariableSet {
-  id: string;
-  name: string;
-  variables: Record<string, string>;
-}
 
 interface VariableSetsSelectionProps {
   allVariableSets: VariableSet[];

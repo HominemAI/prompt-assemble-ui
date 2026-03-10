@@ -1,14 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { FiX, FiPlus, FiSearch } from 'react-icons/fi';
+import { VariableSet } from '../utils/api';
 import VariableSetsSelection from './VariableSetsSelection';
 import VariableSetOverrideEditor from './VariableSetOverrideEditor';
 import '../styles/VariableSetsSelector.css';
-
-interface VariableSet {
-  id: string;
-  name: string;
-  variables: Record<string, string>;
-}
 
 interface VariableSetOverrides {
   setId: string;

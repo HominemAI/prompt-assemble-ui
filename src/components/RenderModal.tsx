@@ -1,15 +1,10 @@
 import React, { useState, useRef } from 'react';
 import { FiX, FiCopy } from 'react-icons/fi';
+import { VariableSet } from '../utils/api';
 import { renderPrompt, formatXml } from '../utils/renderer';
 import { xmlToJson } from '../utils/xmlToJson';
 import { useBackend } from '../contexts/BackendContext';
 import '../styles/RenderModal.css';
-
-interface VariableSet {
-  id: string;
-  name: string;
-  variables: Record<string, string>;
-}
 
 interface Document {
   id: string;
@@ -65,6 +60,18 @@ const RenderModal: React.FC<RenderModalProps> = ({
   const isMouseDownOnOverlay = useRef(false);
   const resizeStartPos = useRef({ x: 0, y: 0, width: 0, height: 0 });
 
+  // Helper to convert tagged or simple variable to string
+  const resolveVariableValue = (value: string | { value: string; tag?: string }): string => {
+    if (typeof value === 'object' && value !== null && 'value' in value) {
+      const { value: val, tag } = value;
+      if (tag) {
+        return `<${tag}>\n  ${val}\n</${tag}>`;
+      }
+      return val;
+    }
+    return String(value);
+  };
+
   // Get merged variables for a prompt (if it's a document)
   const getPromptVariables = async (promptName: string): Promise<Record<string, string>> => {
     // Check if this prompt is a document in our documents list
@@ -80,13 +87,18 @@ const RenderModal: React.FC<RenderModalProps> = ({
 
     for (const setId of setIds) {
       const varSet = variableSets.find((vs) => vs.id === setId);
-      if (varSet) {
-        merged = { ...merged, ...varSet.variables };
+      if (varSet && varSet.variables) {
+        // Add variables from this set, converting tagged variables to strings
+        for (const varName in varSet.variables) {
+          merged[varName] = resolveVariableValue(varSet.variables[varName]);
+        }
       }
 
       // Apply overrides for this set (overrides win)
       const setOverrides = overrides[setId] || {};
-      merged = { ...merged, ...setOverrides };
+      for (const varName in setOverrides) {
+        merged[varName] = setOverrides[varName];
+      }
     }
 
     console.log(`getPromptVariables: Found document "${promptName}" with variables:`, merged);
@@ -123,9 +135,9 @@ const RenderModal: React.FC<RenderModalProps> = ({
             for (const varSetId of variableSetIds) {
               const varSet = variableSets.find((vs) => vs.id === varSetId);
               if (varSet && varSet.variables) {
-                // Add variables from this set
+                // Add variables from this set, converting tagged variables to strings
                 for (const varName in varSet.variables) {
-                  mergedVariables[varName] = varSet.variables[varName];
+                  mergedVariables[varName] = resolveVariableValue(varSet.variables[varName]);
                 }
               }
             }
