@@ -517,8 +517,14 @@ You are a helpful assistant specializing in [[DOMAIN]].
   };
 
   const deleteDocument = (id: string) => {
+    if (isDeletingRef.current) return; // Already deleting, prevent spam
+    isDeletingRef.current = true;
+
     const doc = documents.find((d) => d.id === id);
-    if (!doc) return;
+    if (!doc) {
+      isDeletingRef.current = false;
+      return;
+    }
 
     setConfirmModal({
       isOpen: true,
@@ -536,61 +542,55 @@ You are a helpful assistant specializing in [[DOMAIN]].
           confirmText: 'Delete Forever',
           cancelText: 'Cancel',
           isDangerous: true,
-          onConfirm: async () => {
-            try {
-              // For unsaved documents (Untitled or never saved), just remove from editor
-              if (doc.name === 'Untitled' || !doc.savedAt) {
-                setDocuments(documents.filter((d) => d.id !== id));
-                if (activeDocId === id) {
-                  setActiveDocId(documents[0]?.id || null);
-                }
-                setConfirmModal({ isOpen: false, title: '', message: '', onConfirm: () => {} });
-                return;
-              }
+          onConfirm: () => {
+            // Close modal and document immediately - deletion happens in background
+            setConfirmModal({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+            setDocuments((prev) => prev.filter((d) => d.id !== id));
+            if (activeDocId === id) {
+              setActiveDocId((prev) => {
+                const remaining = documents.filter((d) => d.id !== id);
+                return remaining[0]?.id || null;
+              });
+            }
 
-              // For saved documents, delete from backend first
+            // Start deletion in background without waiting
+            (async () => {
               try {
-                await backend.deletePrompt(doc.name);
-              } catch (deleteError) {
-                console.error('Delete error:', deleteError);
-                // Still remove from UI even if backend delete fails
-                setDocuments(documents.filter((d) => d.id !== id));
-                if (activeDocId === id) {
-                  setActiveDocId(documents[0]?.id || null);
+                // For unsaved documents (Untitled or never saved), just skip backend deletion
+                if (doc.name === 'Untitled' || !doc.savedAt) {
+                  isDeletingRef.current = false;
+                  return;
                 }
-                setPrompts(prompts.filter((p) => p.name !== doc.name));
 
-                setConfirmModal({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+                // For saved documents, delete from backend
+                try {
+                  await backend.deletePrompt(doc.name);
+                  // Remove from prompts list on success
+                  setPrompts((prev) => prev.filter((p) => p.name !== doc.name));
+                } catch (deleteError) {
+                  console.error('Delete error:', deleteError);
+                  setPrompts((prev) => prev.filter((p) => p.name !== doc.name));
+                  isDeletingRef.current = false;
 
+                  setAlertModal({
+                    isOpen: true,
+                    title: 'Delete Removed from UI',
+                    message: `Document removed from editor. Note: Backend delete failed (${deleteError}). Refresh to verify.`,
+                  });
+                  return;
+                }
+
+                isDeletingRef.current = false;
+              } catch (error) {
+                console.error('Error deleting document:', error);
                 setAlertModal({
                   isOpen: true,
-                  title: 'Delete Removed from UI',
-                  message: `Document removed from editor. Note: Backend delete failed (${deleteError}). Refresh to verify.`,
+                  title: 'Delete Error',
+                  message: 'Error deleting document. Check console for details.',
                 });
-                return;
+                isDeletingRef.current = false;
               }
-
-              setDocuments(documents.filter((d) => d.id !== id));
-              if (activeDocId === id) {
-                setActiveDocId(documents[0]?.id || null);
-              }
-
-              // Remove from prompts list silently (no visible refresh)
-              setPrompts(prompts.filter((p) => p.name !== doc.name));
-
-              // Close the confirmation modal
-              setConfirmModal({ isOpen: false, title: '', message: '', onConfirm: () => {} });
-            } catch (error) {
-              console.error('Error deleting document:', error);
-              setAlertModal({
-                isOpen: true,
-                title: 'Delete Error',
-                message: 'Error deleting document. Check console for details.',
-              });
-
-              // Close the confirmation modal even on error
-              setConfirmModal({ isOpen: false, title: '', message: '', onConfirm: () => {} });
-            }
+            })();
           },
         });
       },
@@ -1224,13 +1224,17 @@ You are a helpful assistant specializing in [[DOMAIN]].
         title={confirmModal.title}
         message={confirmModal.message}
         onConfirm={() => {
-          // Call the onConfirm callback from current state before closing
+          // Call the onConfirm callback from current state
+          // Don't close modal here - let the callback handle modal updates
           if (confirmModal.onConfirm) {
+            console.log('[DEBUG] ConfirmModal.onConfirm called for:', confirmModal.title);
             confirmModal.onConfirm();
           }
+        }}
+        onCancel={() => {
+          console.log('[DEBUG] ConfirmModal.onCancel called');
           setConfirmModal({ isOpen: false, title: '', message: '', onConfirm: () => {} });
         }}
-        onCancel={() => setConfirmModal({ isOpen: false, title: '', message: '', onConfirm: () => {} })}
         confirmText={confirmModal.confirmText}
         cancelText={confirmModal.cancelText}
         isDangerous={confirmModal.isDangerous}
