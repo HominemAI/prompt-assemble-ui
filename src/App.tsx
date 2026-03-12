@@ -1224,10 +1224,13 @@ You are a helpful assistant specializing in [[DOMAIN]].
         title={confirmModal.title}
         message={confirmModal.message}
         onConfirm={() => {
-          confirmModal.onConfirm();
-          setConfirmModal({ ...confirmModal, isOpen: false });
+          // Call the onConfirm callback from current state before closing
+          if (confirmModal.onConfirm) {
+            confirmModal.onConfirm();
+          }
+          setConfirmModal({ isOpen: false, title: '', message: '', onConfirm: () => {} });
         }}
-        onCancel={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        onCancel={() => setConfirmModal({ isOpen: false, title: '', message: '', onConfirm: () => {} })}
         confirmText={confirmModal.confirmText}
         cancelText={confirmModal.cancelText}
         isDangerous={confirmModal.isDangerous}
