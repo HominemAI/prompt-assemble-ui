@@ -69,6 +69,9 @@ export async function renderPrompt(
     }
   }
 
+  // Remove empty XML sections
+  currentText = removeEmptyXmlSections(currentText);
+
   return currentText;
 }
 
@@ -85,6 +88,23 @@ function stripComments(text: string): string {
   text = text.replace(/^[ \t]*<!--[\s\S]*?-->\n?/gm, '');
 
   return text;
+}
+
+/**
+ * Remove empty XML sections where content is only whitespace.
+ *
+ * Examples:
+ * - "<tag>   </tag>" -> ""
+ * - "<tag>\n\n</tag>" -> ""
+ * - "<tag>content</tag>" -> "<tag>content</tag>" (unchanged)
+ *
+ * @param text - The text to clean
+ * @returns Text with empty XML sections removed
+ */
+function removeEmptyXmlSections(text: string): string {
+  // Match opening and closing tags with only whitespace between them
+  // This pattern matches: <word>whitespace</word>
+  return text.replace(/<(\w+)>\s*<\/\1>/g, '');
 }
 
 /**
