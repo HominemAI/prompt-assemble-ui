@@ -660,6 +660,7 @@ You are a helpful assistant specializing in [[DOMAIN]].
         cancelText: 'Cancel',
         isDangerous: true,
         onConfirm: () => {
+          setConfirmModal({ isOpen: false, title: '', message: '', onConfirm: () => {} });
           setDocuments([]);
           setActiveDocId(null);
         },

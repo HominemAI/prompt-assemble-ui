@@ -211,7 +211,10 @@ const VariableSetsModal: React.FC<VariableSetsModalProps> = ({ isOpen, onClose, 
                 className="variable-set-item"
                 onClick={() => setSelectedSetId(set.id)}
               >
-                <span className="set-name">{set.name}</span>
+                <div>
+                  <span className="set-name">{set.name}</span>
+                  {set.owner && <span className="set-owner"> ({set.owner})</span>}
+                </div>
                 <span className="var-count">{Object.keys(set.variables).length} variables</span>
               </div>
               <button
