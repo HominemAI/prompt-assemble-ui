@@ -681,7 +681,7 @@ You are a helpful assistant specializing in [[DOMAIN]].
     // Close mobile drawer
     setMobileDrawerOpen(false);
     // Check if this prompt is already open in a document
-    const existingDoc = documents.find((d) => d.name === prompt.name);
+    const existingDoc = documents.find((d) => d.name.toLowerCase() === prompt.name.toLowerCase());
     if (existingDoc) {
       // Switch to existing document instead of opening a new one
       setActiveDocId(existingDoc.id);
@@ -707,7 +707,7 @@ You are a helpful assistant specializing in [[DOMAIN]].
             message: `Prompt "${prompt.name}" not found. It may have been deleted.`,
           });
           // Remove this prompt from the list immediately
-          setPrompts(prompts.filter((p) => p.name !== prompt.name));
+          setPrompts(prompts.filter((p) => p.name.toLowerCase() !== prompt.name.toLowerCase()));
         } else {
           setAlertModal({
             isOpen: true,
@@ -1045,7 +1045,7 @@ You are a helpful assistant specializing in [[DOMAIN]].
                 console.log('Jump to line:', line);
               }}
               onPromptOpen={async (name) => {
-                const existing = prompts.find((p) => p.name === name);
+                const existing = prompts.find((p) => p.name.toLowerCase() === name.toLowerCase());
                 if (existing) {
                   handlePromptSelect(existing);
                 } else {
