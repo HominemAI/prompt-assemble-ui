@@ -44,8 +44,8 @@ const DocumentProperties: React.FC<DocumentPropertiesProps> = ({
     .replace(/[^a-z0-9_-]/g, '');
 
   // Check if the name already exists (excluding current document)
-  const nameExists = !!(normalizedName && normalizedName !== document.name &&
-    allPromptNames.some(name => name.toLowerCase() === normalizedName.toLowerCase()));
+  const nameExists = !!(normalizedName && normalizedName !== document.name.toLowerCase() &&
+    allPromptNames.some(name => name.toLowerCase() === normalizedName));
 
   // Update state when document prop changes
   React.useEffect(() => {

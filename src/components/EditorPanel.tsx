@@ -66,6 +66,12 @@ const EditorPanel: React.FC<EditorPanelProps> = ({
   });
   const [tokenCount, setTokenCount] = useState(0);
 
+  // Reset undo history when switching documents
+  useEffect(() => {
+    setHistory([document.content]);
+    setHistoryIndex(0);
+  }, [document.id]);
+
   // Extract bookmarks from document and update token count
   useEffect(() => {
     try {
