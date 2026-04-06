@@ -14,6 +14,7 @@ import {
   FiClock,
   FiPlay,
   FiSettings,
+  FiLink,
 } from 'react-icons/fi';
 import { useTheme } from './hooks/useTheme';
 import { backend, BackendCapabilities, PromptBackend, VariableSet } from './utils/api';
@@ -145,6 +146,8 @@ const App: React.FC<AppProps> = ({ backend: injectedBackend }) => {
   const pendingSavesRef = useRef<Set<string>>(new Set());
   const isSavingRef = useRef<boolean>(false);
   const isDeletingRef = useRef<boolean>(false);
+  const urlPromptHandledRef = useRef<boolean>(false);
+  const [shareCopied, setShareCopied] = useState(false);
 
   // Persist ONLY saved documents to localStorage (must have savedAt timestamp)
   // This ensures closed tabs don't reopen - they must be saved to persist
@@ -205,6 +208,56 @@ const App: React.FC<AppProps> = ({ backend: injectedBackend }) => {
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
+
+  // Sync URL when active document changes
+  useEffect(() => {
+    if (activeDocId) {
+      const doc = documents.find((d) => d.id === activeDocId);
+      if (doc && doc.name && doc.name !== 'Untitled') {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('prompt') !== doc.name) {
+          params.set('prompt', doc.name);
+          window.history.replaceState(null, '', `?${params.toString()}`);
+        }
+      }
+    } else {
+      // No active doc — clear prompt param
+      const params = new URLSearchParams(window.location.search);
+      if (params.has('prompt')) {
+        params.delete('prompt');
+        const newUrl = params.toString() ? `?${params.toString()}` : window.location.pathname;
+        window.history.replaceState(null, '', newUrl);
+      }
+    }
+  }, [activeDocId, documents]);
+
+  // Open prompt from URL ?prompt=name after prompts load
+  useEffect(() => {
+    if (urlPromptHandledRef.current || prompts.length === 0) return;
+    const params = new URLSearchParams(window.location.search);
+    const promptName = params.get('prompt');
+    if (!promptName) return;
+    urlPromptHandledRef.current = true;
+
+    // Check if already open
+    const alreadyOpen = documents.find(
+      (d) => d.name.toLowerCase() === promptName.toLowerCase()
+    );
+    if (alreadyOpen) {
+      setActiveDocId(alreadyOpen.id);
+      return;
+    }
+
+    const existing = prompts.find(
+      (p) => p.name.toLowerCase() === promptName.toLowerCase()
+    );
+    if (existing) {
+      handlePromptSelect(existing);
+    } else {
+      // Try loading directly by name
+      handlePromptSelect({ name: promptName, content: '', description: '', tags: [] });
+    }
+  }, [prompts]);
 
 
   const loadPrompts = async (showLoadingState = false) => {
@@ -979,6 +1032,24 @@ You are a helpful assistant specializing in [[DOMAIN]].
                   <FiClock size={18} />
                   History
                 </button>
+                {activeDoc.savedAt && activeDoc.name !== 'Untitled' && (
+                  <button
+                    className="btn btn-default hidden md:flex"
+                    onClick={() => {
+                      const params = new URLSearchParams();
+                      params.set('prompt', activeDoc.name);
+                      const url = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
+                      navigator.clipboard.writeText(url).then(() => {
+                        setShareCopied(true);
+                        setTimeout(() => setShareCopied(false), 2000);
+                      });
+                    }}
+                    title="Copy share link"
+                  >
+                    <FiLink size={18} />
+                    {shareCopied ? 'Copied!' : 'Share'}
+                  </button>
+                )}
                 <div style={{ marginLeft: 'auto' }} />
                 <div className="relative flex md:hidden">
                   <button
@@ -1026,6 +1097,24 @@ You are a helpful assistant specializing in [[DOMAIN]].
                         <FiClock size={18} />
                         History
                       </button>
+                      {activeDoc.savedAt && activeDoc.name !== 'Untitled' && (
+                        <button
+                          className="btn btn-default w-full flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium cursor-pointer border-0 transition-colors whitespace-nowrap justify-start"
+                          onClick={() => {
+                            const params = new URLSearchParams();
+                            params.set('prompt', activeDoc.name);
+                            const url = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
+                            navigator.clipboard.writeText(url).then(() => {
+                              setShareCopied(true);
+                              setTimeout(() => setShareCopied(false), 2000);
+                            });
+                          }}
+                          title="Copy share link"
+                        >
+                          <FiLink size={18} />
+                          {shareCopied ? 'Copied!' : 'Share'}
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
