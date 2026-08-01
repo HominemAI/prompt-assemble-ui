@@ -35,12 +35,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4.37.3
         with:
           languages: javascript-typescript
           queries: security-extended
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4.37.3
         with:
           category: "/language:javascript-typescript"
 
@@ -63,7 +63,7 @@ jobs:
           ignore-unfixed: true
           skip-dirs: node_modules
       - name: Upload Trivy results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4.37.3
         if: always()
         with:
           sarif_file: trivy-results.sarif
